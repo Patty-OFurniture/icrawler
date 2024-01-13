@@ -48,6 +48,7 @@ class GoogleFeeder(Feeder):
         search_filter.add_rule("color", format_color, color_choices)
 
         # size filter
+        #  Size -> Large can be anywhere from 900x900 and above (2020)
         def format_size(size):
             if size in ["large", "medium", "icon"]:
                 size_code = {"large": "l", "medium": "m", "icon": "i"}
@@ -73,7 +74,8 @@ class GoogleFeeder(Feeder):
             elif size.startswith("="):
                 wh = size[1:].split("x")
                 assert len(wh) == 2
-                return "isz:ex,iszw:{},iszh:{}".format(*wh)
+                return "imagesize:" + size[1:]
+                # return "isz:ex,iszw:{},iszh:{}".format(*wh)
             else:
                 raise ValueError(
                     'filter option "size" must be one of the following: '
