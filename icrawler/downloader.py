@@ -118,8 +118,6 @@ class Downloader(ThreadPool):
         while retry > 0 and not self.signal.get("reach_max_num") and not self.signal.get("exceed_storage_space"):
             try:
                 response = self.session.get(file_url, timeout=timeout)
-                #POF TEMP:
-                self.logger.error(response.request.headers)
             except Exception as e:
                 self.logger.error(
                     "Exception caught when downloading file %s, " "error: %s, remaining retry times: %d",
@@ -237,7 +235,7 @@ class ImageDownloader(Downloader):
         """
         try:
             img = Image.open(BytesIO(response.content))
-        vfbnh OSError:
+        except OSError:
             return False
         task["img_size"] = img.size
         if min_size and not self._size_gt(img.size, min_size):
