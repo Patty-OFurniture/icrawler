@@ -53,8 +53,8 @@ class MainApplication:
 
         self.crawl_button_text=tk.StringVar(root)
         self.crawl_button_text.set("Go")
-        crawl_button = tk.Button(master, command=self.go_clicked, textvariable=self.crawl_button_text)
-        crawl_button.grid(row=3, columnspan=2, padx=padding_size, pady=padding_size)
+        self.crawl_button = tk.Button(master, command=self.go_clicked, textvariable=self.crawl_button_text)
+        self.crawl_button.grid(row=3, columnspan=2, padx=padding_size, pady=padding_size)
 
     def go_clicked(self):
 
@@ -68,6 +68,7 @@ class MainApplication:
 
         gText=self.crawl_button_text.get()
         self.crawl_button_text.set("Searching...")
+        self.crawl_button.update_idletasks()
         start_download(crawlers_bing, crawlers_baidu, crawlers_google, search_string, max_number, threads)
         self.crawl_button_text.set(gText)
 
@@ -143,8 +144,6 @@ def main():
 
 if __name__ == "__main__":
     root = tk.Tk()
-    # for frame-based app
-    # MainApplication(root).pack(side="top", fill="both", expand=True)
-    # for tk-based app (non-frame)
+    root.eval('tk::PlaceWindow . center') # roughly accurate
     app = MainApplication(root)
     root.mainloop()
