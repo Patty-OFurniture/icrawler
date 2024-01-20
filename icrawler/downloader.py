@@ -139,10 +139,13 @@ class Downloader(ThreadPool):
 
                 try:
                     self.storage.write(filename, response.content)
+                    task["success"] = True
                 except OSError as o:
                     self.signal.set(exceed_storage_space=True)
+                    task["success"] = False
                 else:
-                    task["success"] = True
+                    task["success"] = False
+                    raise
                 finally:
                     task["filename"] = filename # may be zero bytes if OSError happened during write()
                 break
