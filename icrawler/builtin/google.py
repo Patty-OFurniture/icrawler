@@ -1,10 +1,6 @@
-import sys
-import os
 import datetime
 import json
-import hjson
 import re
-import logging
 from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
@@ -14,7 +10,6 @@ from .filter import Filter
 
 
 class GoogleFeeder(Feeder):
-
     def get_filter(self):
         search_filter = Filter()
 
@@ -89,12 +84,14 @@ class GoogleFeeder(Feeder):
 
         # licence filter
         license_code = {
-            "Commercial & other licenses": "ol",
-            "Creative Commons licenses": "cl",
+            "noncommercial": "f",
+            "commercial": "fc",
+            "noncommercial,modify": "fm",
+            "commercial,modify": "fmc",
         }
 
         def format_license(license):
-            return "il:" + license_code[license]
+            return "sur:" + license_code[license]
 
         license_choices = list(license_code.keys())
         search_filter.add_rule("license", format_license, license_choices)
@@ -145,27 +142,13 @@ class GoogleFeeder(Feeder):
 
 
 class GoogleParser(Parser):
-
-    # Looking for <script> tags containing "AF_initDataCallback" and "ds:1"
-    # unwanted example:
-    #     AF_initDataCallback({key: 'ds:0', hash: '1', data:[], sideChannel: {}});
-    # desired example:
-    #     AF_initDataCallback({key: 'ds:1', hash: '2', data:[null,[null,null,nu...
-    # 
-
-    google_magic = "444383007" # "pDC"??? "D80"???
-
+    google_magic = "444383007"
     def parse(self, response):
         soup = BeautifulSoup(response.content.decode("utf-8", "ignore"), "lxml")
         self.save_results("Google", soup)
         image_divs = soup.find_all(name="script")
         for div in image_divs:
             txt = str(div)
-            if "AF_initDataCallback" not in txt:
-                continue
-            if "ds:0" in txt or "ds:1" not in txt:
-                continue
-
             try:
                 results = []
                 start=txt.index("{")
@@ -200,7 +183,10 @@ class GoogleParser(Parser):
                 self.logger.error("%s\n%s\n%s", exc_type, fname, exc_tb.tb_lineno)
                 pass
 
-            uris = re.findall(r"http[^\[]*?\.(?:jpg|png|bmp)", txt)
+            uris = re.findall(r"http[^\[]*?.(?:jpg|png|bmp|webp)", txt)
+            uris = [bytes(uri, "utf-8").decode("unicode-escape") for uri in uris]
+            if not uris:
+	            uris = re.findall(r"http[^\[]*?\.(?:jpg|png|bmp|webp)", txt)
             if len(uris) < 1:
                 self.save_results(soup)
             return [{"file_url": uri} for uri in uris]
