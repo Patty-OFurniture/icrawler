@@ -11,7 +11,9 @@ class PseudoParser(Parser):
                 self.logger.info("downloaded image reached max num, thread %s" " exit", threading.current_thread().name)
                 break
             if self.signal.get("exceed_storage_space"):
-                self.logger.info("downloaded image reached max storage space, thread %s" " exit", threading.current_thread().name)
+                self.logger.info(
+                    "downloaded image reached max storage space, thread %s" " exit", threading.current_thread().name
+                )
                 break
             try:
                 url = self.in_queue.get(timeout=queue_timeout)
@@ -36,7 +38,10 @@ class UrlListCrawler(Crawler):
     ):
         super().__init__(feeder_cls, parser_cls, downloader_cls, *args, **kwargs)
 
-    def crawl(self, url_list, max_num=1000, file_idx_offset=0, overwrite=False):
-        feeder_kwargs = dict(url_list=url_list)
-        downloader_kwargs = dict(file_idx_offset=file_idx_offset, max_num=max_num, overwrite=overwrite)
-        super().crawl(feeder_kwargs=feeder_kwargs, downloader_kwargs=downloader_kwargs)
+    def crawl(self, url_list, max_num=1000, file_idx_offset=0, overwrite=False, max_idle_time=None):
+        super().crawl(
+            feeder_kwargs=dict(url_list=url_list),
+            downloader_kwargs=dict(
+                file_idx_offset=file_idx_offset, max_num=max_num, overwrite=overwrite, max_idle_time=max_idle_time
+            ),
+        )

@@ -82,12 +82,12 @@ class ThreadPool:
                         self.logger.info("duplicate task key %s rejected", task_key)
                     else:
                         self.keys.add(task_key)
-                        self.out_queue.put(task, block, timeout)
-                else:
-                        self.out_queue.put(task, block, timeout)
-                #if not unique or task_key not in self.keys:
-                #    self.keys.add(task_key)
-                #    self.out_queue.put(task, block, timeout)
+                self.out_queue.put(task, block, timeout)
+            else:
+                    self.out_queue.put(task, block, timeout)
+            #if not unique or task_key not in self.keys:
+            #    self.keys.add(task_key)
+            #    self.out_queue.put(task, block, timeout)
         except Exception as e:
             self.logger.error(e)
             print(traceback.format_exc())

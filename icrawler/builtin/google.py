@@ -142,54 +142,30 @@ class GoogleFeeder(Feeder):
 
 
 class GoogleParser(Parser):
-    google_magic = "444383007"
     def parse(self, response):
         soup = BeautifulSoup(response.content.decode("utf-8", "ignore"), "lxml")
-        self.save_results("Google", soup)
+        # image_divs = soup.find_all('script')
         image_divs = soup.find_all(name="script")
         for div in image_divs:
+            # txt = div.text
             txt = str(div)
-            try:
-                results = []
-                start=txt.index("{")
-                end = txt.index(");</script>", start)
-                # hjson.loads is less strict than json.loads
-                j = hjson.loads(txt[start:end])
-                for i in j["data"][56][1][0][0][1][0]:
-                    
-                    if i[0][0][self.google_magic][0] == 1:
-                        n = i[0][0][self.google_magic][1]
-                        # if not n: might be an ad
-                        if n:
-                            img_src=n[25]["2003"][2]
+            # if not txt.startswith('AF_initDataCallback'):
+            # if "AF_initDataCallback" not in txt:
+            #     continue
+            # if "ds:0" in txt or "ds:1" not in txt:
+            #     continue
+            # txt = re.sub(r"^AF_initDataCallback\({.*key: 'ds:(\d)'.+data:function\(\){return (.+)}}\);?$",
+            #             "\\2", txt, 0, re.DOTALL)
+            # meta = json.loads(txt)
+            # data = meta[31][0][12][2]
+            # uris = [img[1][3][0] for img in data if img[0] == 1]
 
-                            self.logger.info("{}\n{}x{}".format(n[3][0], n[3][2], n[3][1]))
-                            self.logger.info(img_src)
-                            results.append(dict(file_url=n[3][0], img_src=img_src))
-                            with open("refeed_source_urls.txt", "a") as myfile:
-                                myfile.write(img_src)
-                                myfile.write("\n")
-                    elif i[0][0][self.google_magic][0] == 19:
-                        self.logger.info("google magic {}{}".format(i[0][0][self.google_magic][0], i))
-                    else:
-                        self.logger.info("google magic unknown {}{}".format(i[0][0][self.google_magic][0], i))
-
-                return results
-            except Exception as e:
-                self.logger.error(e)
-                self.logger.error(txt[start:end])
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                self.logger.error("%s\n%s\n%s", exc_type, fname, exc_tb.tb_lineno)
-                pass
-
-            uris = re.findall(r"http[^\[]*?.(?:jpg|png|bmp|webp)", txt)
-            uris = [bytes(uri, "utf-8").decode("unicode-escape") for uri in uris]
+            uris = re.findall(r"http[^\[]*?.(?:jpg|png|bmp)", txt)
             if not uris:
-	            uris = re.findall(r"http[^\[]*?\.(?:jpg|png|bmp|webp)", txt)
-            if len(uris) < 1:
-                self.save_results(soup)
-            return [{"file_url": uri} for uri in uris]
+                uris = re.findall(r"http[^\[]*?\.(?:jpg|png|bmp)", txt)
+            uris = [bytes(uri, "utf-8").decode("unicode-escape") for uri in uris]
+            if uris:
+                return [{"file_url": uri} for uri in uris]
 
 
 class GoogleImageCrawler(Crawler):
@@ -209,12 +185,11 @@ class GoogleImageCrawler(Crawler):
         language=None,
         file_idx_offset=0,
         overwrite=False,
+        max_idle_time=None,
     ):
         if offset + max_num > 1000:
             if offset > 1000:
-                self.logger.error(
-                    '"Offset" cannot exceed 1000, otherwise you will get ' "duplicated searching results."
-                )
+                self.logger.error("Offset cannot exceed 1000, otherwise you " "will get duplicated searching results.")
                 return
             elif max_num > 1000:
                 max_num = 1000 - offset
@@ -225,9 +200,13 @@ class GoogleImageCrawler(Crawler):
                     "can specify different date ranges.",
                     1000 - offset,
                 )
-
         feeder_kwargs = dict(keyword=keyword, offset=offset, max_num=max_num, language=language, filters=filters)
         downloader_kwargs = dict(
-            max_num=max_num, min_size=min_size, max_size=max_size, file_idx_offset=file_idx_offset, overwrite=overwrite
+            max_num=max_num,
+            min_size=min_size,
+            max_size=max_size,
+            file_idx_offset=file_idx_offset,
+            overwrite=overwrite,
+            max_idle_time=max_idle_time,
         )
         super().crawl(feeder_kwargs=feeder_kwargs, downloader_kwargs=downloader_kwargs)

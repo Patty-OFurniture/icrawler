@@ -1,9 +1,11 @@
-import datetime
 import logging
 import queue
 import time
+import datetime
+import sys
 from threading import current_thread
 from urllib.parse import urlsplit
+from bs4 import BeautifulSoup
 
 from .utils import ThreadPool
 
@@ -23,9 +25,9 @@ class Parser(ThreadPool):
         lock: A threading.Lock object.
     """
 
-    def __init__(self, thread_num, signal, session):
+    def __init__(self, thread_num, signal, session, in_queue=None, out_queue=None, name="parser"):
         """Init Parser with some shared variables."""
-        super().__init__(thread_num, name="parser")
+        super().__init__(thread_num, in_queue=in_queue, out_queue=out_queue, name=name)
         self.signal = signal
         self.session = session
 
@@ -63,9 +65,7 @@ class Parser(ThreadPool):
                 )
                 break
             if self.signal.get("exceed_storage_space"):
-                self.logger.info(
-                    "no more storage space, thread %s " "is ready to exit", current_thread().name
-                )
+                self.logger.info("no more storage space, thread %s " "is ready to exit", current_thread().name)
                 break
             # get the page url
             try:
@@ -74,9 +74,8 @@ class Parser(ThreadPool):
                 if self.signal.get("feeder_exited"):
                     self.logger.info("no more page urls for thread %s to parse", current_thread().name)
                     break
-                else:
-                    self.logger.info("%s is waiting for new page urls", current_thread().name)
-                    continue
+                self.logger.info("%s is waiting for new page urls", current_thread().name)
+                continue
             except:
                 self.logger.error("exception in thread %s", current_thread().name)
                 continue
@@ -86,8 +85,9 @@ class Parser(ThreadPool):
             retry = max_retry
             while retry > 0:
                 try:
-                    base_url = "{0.scheme}://{0.netloc}".format(urlsplit(url))
-                    response = self.session.get(url, timeout=req_timeout, headers={"Referer": base_url})
+                    # base_url = "{0.scheme}://{0.netloc}".format(urlsplit(url))
+                    # response = self.session.get(url, timeout=req_timeout, headers={"Referer": base_url})
+                    response = self.session.get(url, timeout=req_timeout)
                 except Exception as e:
                     self.logger.error(
                         "Exception caught when fetching page %s, " "error: %s, remaining retry times: %d",
@@ -95,14 +95,16 @@ class Parser(ThreadPool):
                         e,
                         retry - 1,
                     )
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(exc_type, fname, exc_tb.tb_lineno)
                 else:
                     self.logger.info(f"parsing result page {url}")
                     task_list = self.parse(response, **kwargs)
                     if not task_list:
                         self.logger.debug("self.parse() returned no tasks")
-                        with open("task_list_error.log", 'ab') as f:
-                            f.write("\n------------- {}\n".format(datetime.datetime.now()))
-                            f.write(response.content)
+                        soup = BeautifulSoup(response.content.decode("utf-8", "ignore"), "lxml")
+                        self.save_results("TaskList", soup)
                         task_list = {}
                         
                     for task in task_list:
@@ -121,7 +123,6 @@ class Parser(ThreadPool):
                                 self.logger.error(
                                     "Exception caught when put task %s into " "queue, error: %s", task, url
                                 )
-                                self.logger.error(e)
                             else:
                                 break
                         if self.signal.get("reach_max_num"):
@@ -137,7 +138,7 @@ class Parser(ThreadPool):
     def save_results(self, name, soup):
         if self.logger.isEnabledFor(logging.DEBUG):
             with open(f"{name}_log.txt", "a") as log:
-                log.write(f"=== {name} log\n")
+                log.write(f"=== {name} log {datetime.datetime.now()}\n")
                 log.write(soup.prettify())
                 log.write(f"\n=== {name} log\n")
 
